@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+  build-linux:
+    name: Build Linux x86_64
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Create tarball
+        run: |
+          mkdir -p null-or-die-linux-x86_64
+          cp target/x86_64-unknown-linux-gnu/release/null-or-die null-or-die-linux-x86_64/
+          cp README.md LICENSE null-or-die-linux-x86_64/
+          tar -czf null-or-die-linux-x86_64.tar.gz null-or-die-linux-x86_64/
+          ls -lh null-or-die-linux-x86_64.tar.gz
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./null-or-die-linux-x86_64.tar.gz
+          asset_name: null-or-die-linux-x86_64.tar.gz
+          asset_content_type: application/gzip
+
+  build-windows:
+    name: Build Windows x86_64
+    runs-on: windows-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Create archive
+        shell: powershell
+        run: |
+          mkdir null-or-die-windows-x86_64
+          copy target/x86_64-pc-windows-msvc/release/null-or-die.exe null-or-die-windows-x86_64/
+          copy README.md, LICENSE null-or-die-windows-x86_64/
+          Compress-Archive -Path null-or-die-windows-x86_64 -DestinationPath null-or-die-windows-x86_64.zip
+          ls null-or-die-windows-x86_64.zip
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./null-or-die-windows-x86_64.zip
+          asset_name: null-or-die-windows-x86_64.zip
+          asset_content_type: application/zip
+
+  build-macos:
+    name: Build macOS Universal Binary
+    runs-on: macos-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build x86_64
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Build aarch64
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Create Universal Binary
+        run: |
+          lipo -create \
+            target/x86_64-apple-darwin/release/null-or-die \
+            target/aarch64-apple-darwin/release/null-or-die \
+            -output null-or-die-universal
+
+      - name: Create tarball
+        run: |
+          mkdir -p null-or-die-macos-universal
+          cp null-or-die-universal null-or-die-macos-universal/null-or-die
+          cp README.md LICENSE null-or-die-macos-universal/
+          tar -czf null-or-die-macos-universal.tar.gz null-or-die-macos-universal/
+          ls -lh null-or-die-macos-universal.tar.gz
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./null-or-die-macos-universal.tar.gz
+          asset_name: null-or-die-macos-universal.tar.gz
+          asset_content_type: application/gzip
