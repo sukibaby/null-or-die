@@ -133,6 +133,8 @@ jobs:
       - build-windows
       - build-macos
     steps:
+      - uses: actions/checkout@v4
+
       - name: Set release tag
         shell: bash
         run: |
