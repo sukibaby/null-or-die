@@ -2,12 +2,9 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Tag name to release
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -138,11 +135,8 @@ jobs:
       - name: Set release tag
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "RELEASE_TAG=${{ inputs.tag }}" >> "$GITHUB_ENV"
-          else
-            echo "RELEASE_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-          fi
+          short_hash=$(git rev-parse --short HEAD)
+          echo "RELEASE_TAG=$short_hash" >> "$GITHUB_ENV"
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -157,7 +151,7 @@ jobs:
           set -euo pipefail
 
           tag="$RELEASE_TAG"
-          release_title="Release $tag"
+          release_title="Automated Release"
 
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --target "$GITHUB_SHA" --title "$release_title" --notes ""
 
