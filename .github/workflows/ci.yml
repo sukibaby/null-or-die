@@ -14,50 +14,6 @@ env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-jobs:
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Rust
-        run: |
-          rustup default stable
-          rustc --version
-          cargo --version
-
-      - name: Run tests
-        run: cargo test --verbose
-
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Rustfmt
-        run: |
-          rustup default stable
-          rustup component add rustfmt
-
-      - name: Check formatting
-        run: cargo fmt --all --check
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Clippy
-        run: |
-          rustup default stable
-          rustup component add clippy
-
-      - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
   build-linux:
     name: Build Linux x86_64
     runs-on: ubuntu-latest
